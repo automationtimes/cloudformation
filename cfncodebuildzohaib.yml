@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  CodeBuildName:
+    Type: String
+  Codebuildimage:
+    Type: String
+    Default: aws/codebuild/standard:4.0
+    AllowedValues:
+      - aws/codebuild/standard:4.0
+      - aws/codebuild/standard:5.0
+    Description: select aws/codebuild image according to your requirements
+  RepoName:
+    Type: String 
+    Default: CDK
+  ComputeType:
+    Type: String
+    Default: BUILD_GENERAL1_SMALL
+    AllowedValues:
+      - BUILD_GENERAL1_SMALL
+      - BUILD_GENERAL1_MEDIUM
+      - BUILD_GENERAL1_LARGE
+    Description: BUILD_GENERAL1_SMALL Use up to 3 GB memory and 2 vCPUs for builds, GENERAL1_MEDIUM Use up to 7 GB memory and 4 vCPUs,
+     BUILD_GENERAL1_LARGE Use up to 15 GB memory and 8 vCPUs
+  GithubUserName:
+    Type: String
+    Default: mzohaibashraf
+  Env:
+    Type: String
+    AllowedValues:
+      - Dev
+      - UAT
+      - Pre-Prod
+      - Prod
+    Description: Select environment you're deploying to.
+  LogGroupName:
+    Type: String
+  LogStream:
+    Type: String
+  LogGroupStatus:
+    Type: String
+    Default: ENABLED
+Resources:
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub CodeBuildRole-${Env}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /service-role/
+      Policies:
+        -
+          PolicyName: "CodeBuildAccessPolicies"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "*"
+                Resource:
+                  - "*"
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: 
+        !Sub ${CodeBuildName}-${Env}
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType:
+          Ref: ComputeType
+        Image: 
+          Ref: Codebuildimage
+      Source:
+        Auth:
+          Type: OAUTH
+        Location: !Sub https://github.com/${GithubUserName}/${RepoName}.git
+        Type: GITHUB
+      Triggers:
+        Webhook: true
+      TimeoutInMinutes: 10
+      LogsConfig: 
+          CloudWatchLogs:
+              GroupName: 
+                !Sub ${LogGroupName}-${Env}
+              Status: 
+                Ref: LogGroupStatus
+              StreamName:
+                !Sub ${LogStream}-${Env}
+      Tags:
+        - Key: Name
+          Value: !Sub CDKStackBuild-${Env}
+
+         

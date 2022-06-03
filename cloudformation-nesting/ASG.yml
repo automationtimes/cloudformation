@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  ASGLauchSG:
+    Type: String
+  AllPrivateSubnet:
+    Type: List<AWS::EC2::Subnet::Id>
+  TarGetGroup:
+    Type: String 
+  RDSEndPoints:
+    Type: String 
+  Env:
+    Type: String
+    Default: Dev
+    AllowedValues:
+      - Dev
+      - Prod
+  InstanceType: 
+    Type: String 
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+  InstanceMinSize: 
+    Type: String 
+    Default: "2"
+    Description: please select minimum size 
+  InstanceMaxSize: 
+    Type: String 
+    Default: "2"
+    Description: please select max size 
+  InstanceDesireSize: 
+    Type: String 
+    Default: "2"
+    Description: please select desire size  
+  AMIId:
+    Type: String 
+    Default: ami-0231217be14a6f3ba
+  KeyName:
+    Type: String 
+    Default: zohaiblhr
+    AllowedValues:
+      - zohaiblhr
+      - zcloudskey
+Resources:
+  SSMPermissionRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - ec2.amazonaws.com
+              Action:
+                - 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: !Sub ${AWS::StackName}-${Env}
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: 
+                  - "ssm:Get*"
+                  - "ssm:Describe*"
+                  - "ssm:List*"
+                  Resource: '*'
+  MyIamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: MyIamInstanceProfile
+      Path: "/"
+      Roles:
+      - !Ref SSMPermissionRole
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub '${Env}-launch-template'
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - MyIamInstanceProfile
+            - Arn
+        DisableApiTermination: false
+        ImageId: !Ref AMIId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        SecurityGroupIds: 
+            - !Ref ASGLauchSG    
+        UserData: 
+          Fn::Base64: 
+            !Sub  
+              - |  
+                #!/bin/bash
+                "fn::"
+                sudo yum update -y
+                sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
+                sudo yum install curl
+                sudo curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                sudo unzip awscliv2.zip
+                sudo ./aws/install
+                aws --version
+                sudo yum install -y httpd
+                sudo systemctl start httpd
+                sudo systemctl enable httpd
+                sudo systemctl is-enabled httpd
+                sudo usermod -a -G apache ec2-user
+                sudo chown -R ec2-user:apache /var/www
+                sudo chmod 2775 /var/www && find /var/www -type d -exec sudo chmod 2775 {} \;
+                find /var/www -type f -exec sudo chmod 0664 {} \;
+                sudo yum install php-mbstring php-xml -y
+                sudo systemctl restart httpd
+                sudo systemctl restart php-fpm
+                wget https://wordpress.org/latest.tar.gz
+                tar -xzf latest.tar.gz
+                cp wordpress/wp-config-sample.php wordpress/wp-config.php
+                cp -r wordpress/* /var/www/html/
+                db_username=`aws ssm get-parameters --region us-east-2 --names /wordpress/dbusername --no-with-decryption --query Parameters[0].Value`
+                db_userpassword=`aws ssm get-parameters --region us-east-2 --names /wordpress/rds --no-with-decryption --query Parameters[0].Value`
+                db_name=`aws ssm get-parameters --region us-east-2 --names /wordpress/dbname --no-with-decryption --query Parameters[0].Value`
+                password=`echo $db_userpassword | sed -e 's/^"//' -e 's/"$//'`
+                DB_Name=`echo $db_name | sed -e 's/^"//' -e 's/"$//'`
+                Dbusername=`echo $db_username | sed -e 's/^"//' -e 's/"$//'`
+                db_host=${RDSEndPoint}
+                sed -i "s/database_name_here/$DB_Name/g" /var/www/html/wp-config.php 
+                sed -i "s/username_here/$Dbusername/g" /var/www/html/wp-config.php 
+                sed -i "s/password_here/$password/g" /var/www/html/wp-config.php
+                sed -i "s/localhost/$db_host/g" /var/www/html/wp-config.php 
+              - RDSEndPoint: !Ref RDSEndPoints                                 
+  ZCloudsASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub '${AWS::StackName}-${Env}-ASG'
+      MinSize: !Ref InstanceMinSize
+      MaxSize: !Ref InstanceMaxSize
+      DesiredCapacity: !Ref InstanceDesireSize
+      HealthCheckGracePeriod: 300
+      LaunchTemplate:
+        LaunchTemplateId: !Ref MyLaunchTemplate
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier: !Ref  AllPrivateSubnet
+      TargetGroupARNs: 
+        - !Ref TarGetGroup
+      Tags:
+      - Key: !Sub '${Env}-key'
+        Value: !Sub '${AWS::StackName}-stack'
+        PropagateAtLaunch: "true"
+  ASGScalingPolicyHigh: 
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      AutoScalingGroupName: !Ref ZCloudsASG
+      PolicyType: "StepScaling"
+      MetricAggregationType: "Average"
+      EstimatedInstanceWarmup: 60
+      StepAdjustments: 
+        - MetricIntervalLowerBound: 0
+          MetricIntervalUpperBound: 15
+          ScalingAdjustment: 1
+        - MetricIntervalLowerBound: 15
+          MetricIntervalUpperBound: 25
+          ScalingAdjustment: 2
+        - MetricIntervalLowerBound: 25
+          ScalingAdjustment: 3
+
+  
+    
+    

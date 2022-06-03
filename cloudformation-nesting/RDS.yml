@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Description": "AWS CloudFormation Template for creating an Amazon RDS DB instance: 
+Parameters:
+  Env:
+    Type: String
+    Default: Dev
+    AllowedValues:
+      - Dev
+      - Prod
+  AllPrivateSubnet:
+    Type: List<AWS::EC2::Subnet::Id>
+  vpcSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  DBInstanceID:
+    Default: mydbinstance
+    Description: My database instance
+    Type: String
+    MinLength: '1'
+    MaxLength: '63'
+    ConstraintDescription: >-
+      Must begin with a letter and must not end with a hyphen or contain two
+      consecutive hyphens.
+  DBName:
+    Default: zcloudsdb
+    Description: My database
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+  MYSqlVersion:
+    Default: 8.0.16
+    Description: DB instance class
+    Type: String
+    AllowedValues: 
+      - 8.0.16
+      - 5.7.21
+      - 5.7.25
+      - 5.7.17
+    ConstraintDescription: Must select a valid DB instance type.
+  DBAllocatedStorage:
+    Default: '20'
+    Description: The size of the database (GiB)
+    Type: Number
+    MinValue: '20'
+    MaxValue: '65536'
+    ConstraintDescription: must be between 20 and 65536 GiB.
+  DBUsername:
+    Default: 'zcloudsuser'
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password MySQL database access
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    ConstraintDescription: must contain only alphanumeric characters.
+Conditions:
+  isDev: !Equals [!Ref Env, Dev]
+   
+ 
+Resources: 
+  PasswordStore:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /wordpress/rds
+      Type: String
+      Value: !Ref DBPassword
+      Description: SSM Parameter set to retrive password
+      Tags:
+        Environment: !Sub '${AWS::StackName}-${Env}'
+  dbusernameStore:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/dbusername"
+      Type: String
+      Value: !Sub 'DBUsername'
+      Description: SSM Parameter set to retrive password
+      Tags:
+        Environment: !Sub "${AWS::StackName}-${Env}"
+  dbnameStore:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/wordpress/dbname"
+      Type: String
+      Value: !Sub 'DBName'
+      Description: SSM Parameter set to retrive password
+      Tags:
+        Environment: !Sub "${AWS::StackName}-${Env}"
+  myDBSubnetGroup: 
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties: 
+      DBSubnetGroupDescription: description
+      SubnetIds: !Ref AllPrivateSubnet
+      Tags: 
+        - 
+          Key: subnet-Group
+          Value: !Sub "${AWS::StackName}-stack"
+    
+  MySqlRds:
+    Type: 'AWS::RDS::DBInstance'
+    Condition: isDev
+    Properties:
+      DBInstanceIdentifier: !Sub DBInstanceID-${Env}
+      DBName: !Sub 'DBName'
+      DBInstanceClass: !If [isDev, db.t2.small, db.t2.micro]
+      AllocatedStorage: !Ref DBAllocatedStorage
+      Engine: MySQL
+      EngineVersion: !Ref MYSqlVersion
+      DBSubnetGroupName: !Ref myDBSubnetGroup
+      MasterUsername: !Sub 'DBUsername'
+      MasterUserPassword: !Ref DBPassword
+      VPCSecurityGroups: 
+        - !Ref vpcSecurityGroupId
+Outputs:
+  RDSEndPoints:
+    Description: RDS EndPoint
+    Value: !GetAtt  MySqlRds.Endpoint.Address
+    Export:
+      Name: RDSEndPoint
+  
+       
+    
+
+      

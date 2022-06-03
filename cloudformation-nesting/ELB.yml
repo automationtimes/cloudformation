@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+    This template deploys an Application Load Balancer 
+Parameters:
+  AllPublicSubnet:
+    Type: List<AWS::EC2::Subnet::Id>
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+  VPCIDGET:
+    Type: AWS::EC2::VPC::Id
+  Env:
+    Type: String
+    Default: Dev
+    AllowedValues:
+      - Dev
+      - Prod 
+  HealthCheckInterval:
+    Type: String
+    Default: '30'
+    Description: Health check Interval range is 5-300 seconds
+  HealthChecktimeout: 
+    Type: String
+    Default: '25'
+    Description: The amount of time, in seconds, during which no response from a target means a failed health check. The range is 2-120 seconds
+  Healthycount:
+    Type: String 
+    Default: '2'
+    Description: The number of consecutive successful health checks required before considering an unhealthy target healthy. The range is 2-10.
+  Unhealthycount: 
+    Type: String 
+    Default: '5'
+    Description: The number of consecutive failed health checks required before considering a target unhealthy. The range is 2-10
+
+Resources: 
+    LoadBalancer:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Name: !Sub "Lb-${AWS::StackName}"
+            Scheme: internet-facing
+            Subnets: !Ref AllPublicSubnet
+            SecurityGroups: 
+                - !Ref ELBSecurityGroup
+            Tags: 
+              - Key: Name
+                Value: !Sub "Lb-${AWS::StackName}"
+
+    LoadBalancerListener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            LoadBalancerArn: !Ref LoadBalancer
+            Port: 80
+            Protocol: HTTP 
+            DefaultActions: 
+                - Type: forward
+                  TargetGroupArn: !Ref TargetGroup
+    
+    TargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            VpcId: !Ref VPCIDGET
+            Port: 80
+            Protocol: HTTP
+            TargetType: instance
+            Matcher: 
+                HttpCode: 200
+            HealthCheckIntervalSeconds: !Ref HealthCheckInterval
+            HealthCheckPath: /
+            HealthCheckProtocol: HTTP
+            HealthCheckTimeoutSeconds: !Ref HealthChecktimeout
+            HealthyThresholdCount: !Ref Healthycount
+            UnhealthyThresholdCount: !Ref Unhealthycount
+           
+Outputs:
+    LoadBalancer:
+        Description: A reference to the Application Load Balancer
+        Value: !Ref LoadBalancer
+        Export: 
+          Name: LoadBalancerArn
+
+    LoadBalancerUrl:
+        Description: The URL of the ALB
+        Value: !GetAtt LoadBalancer.DNSName
+
+    Listener:
+        Description: A reference to a port 80 listener
+        Value: !Ref LoadBalancerListener  
+
+    TargetGroup:
+        Description: A reference to the target group
+        Value: !Ref TargetGroup
+        Export: 
+          Name: TarGetGroupARN
+    
+   

@@ -1,0 +1,18 @@
+# region: "us-west-2"
+region: "us-east-1"
+
+identifier: "nops"
+
+# s3_bucket_name: "uat-s3-static"
+s3_bucket_name: "parth-vyas-static"
+
+## cloudfront variables
+cloudfront_aliases: ["ken.staging.nops.io"]
+acm_cert_arn: "arn:aws:acm:us-east-1:202279780353:certificate/b15b1aa5-ce31-4bfa-8b85-8fa362e301a1"
+web_acl_id: "6d94c4a7-c857-4392-a4d1-a34bc9c1e1d5"
+tags:
+  Terraform: true
+  owner: "dev@nclouds.com"
+  Environment: "uat"
+  Project: "nops"
+  AppName: "kenStatic"

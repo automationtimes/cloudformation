@@ -1,0 +1,142 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template creates a CloudFront distribution for
+  the S3 static frontend and the ECS backend
+
+Parameters:
+
+  Env:
+    Type: String
+    Description: unique environment name
+    
+  S3OriginDomainName:
+    Type: String
+    Description: The S3 origin domain name for the CloudFront distribution
+  
+  CustomOriginDomainName:
+    Type: String
+    Description: The ALB origin domain name for the CloudFront distribution
+
+  AcmCertificateArn:
+    Type: String
+    Description: SSL Certificate to associate with the CloudFront distribution
+
+  Aliases:
+    Type: List<String>
+    Description: CNAMES aliases for the distribution
+
+  StackName:
+    Type: String
+    Description: Stack name to prefix some resource names
+
+Resources:
+
+  OriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties: 
+      CloudFrontOriginAccessIdentityConfig: 
+        Comment: !Sub '${Env} env S3 origin access identity for untoil reports'
+
+  WebACL:
+    Type: AWS::WAF::WebACL
+    Properties: 
+      DefaultAction: 
+        Type: ALLOW
+      MetricName: !Sub '${Env}nops'
+      Name: !Sub '${Env}nops'
+      # Rules: 
+      #   - ActivatedRule
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: nOps Distribution
+        Origins:
+          - DomainName: !Ref S3OriginDomainName
+            # OriginPath: /
+            Id: S3Frontend
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${OriginAccessIdentity}
+          - DomainName: !Ref CustomOriginDomainName
+            # OriginPath: /
+            Id: Backend
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginKeepaliveTimeout: 5
+              OriginProtocolPolicy: https-only
+              OriginReadTimeout: 30
+              OriginSSLProtocols: 
+                - TLSv1
+                - SSLv3
+                - TLSv1.1
+                - TLSv1.2
+        CacheBehaviors:
+          - AllowedMethods: 
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            CachedMethods: 
+              - GET
+              - HEAD
+            Compress: false
+            DefaultTTL: 60
+            MaxTTL: 120
+            MinTTL: 0
+            ForwardedValues: 
+              QueryString: false
+            PathPattern: static/*
+            TargetOriginId: S3Frontend
+            ViewerProtocolPolicy: redirect-to-https
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+          DefaultTTL: 60
+          MaxTTL: 120
+          MinTTL: 0
+          TargetOriginId: Backend
+          ForwardedValues:
+            QueryString: true
+            Headers:
+                - '*'
+            Cookies:
+              Forward: all
+          ViewerProtocolPolicy: redirect-to-https
+        Aliases: !Ref Aliases
+        PriceClass: PriceClass_100
+        DefaultRootObject: ""
+        # Logging:
+        #   IncludeCookies: 'false'
+        #   Bucket: mylogs.s3.amazonaws.com
+        #   Prefix: myprefix
+        ViewerCertificate:
+            AcmCertificateArn: !Ref AcmCertificateArn
+            # CloudFrontDefaultCertificate: false
+            SslSupportMethod: sni-only
+        WebACLId: !Ref WebACL
+      Tags:
+        - Key: StackName
+          Value: !Ref StackName
+
+Outputs:
+
+  DomainName:
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Description: CloudFront distribution endpoint
+
+  DistributionId:
+    Value: !Ref CloudFrontDistribution
+    Description: CloudFront distribution id

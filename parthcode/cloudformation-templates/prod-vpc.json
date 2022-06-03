@@ -1,0 +1,569 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Template for creating the VPC",
+
+  "Outputs": {
+    "VpcId":{
+        "Description": "VPC created",
+        "Value": { "Ref": "VPC" }
+    },
+    "pubsub1": {
+        "Description": "Public subnet from  VPC",
+        "Value": { "Ref": "PublicSubnet1" }
+    },
+    "pubsub2": {
+        "Description": "Public subnet from  VPC",
+        "Value": { "Ref": "PublicSubnet2" }
+    },
+    "prvsub1": {
+        "Description": "Private network 1 from VPC",
+        "Value": { "Ref": "PrivateSubnet1" }
+    },
+    "prvsub2": {
+        "Description": "Private network 2 from  VPC",
+        "Value": { "Ref": "PrivateSubnet2" }
+    },
+    "prvsub3": {
+        "Description": "Private network 3 from  VPC",
+        "Value": { "Ref": "PrivateSubnet2" }
+    },
+    "KenwebELBID": {
+        "Description": "KenwebELBID",
+        "Value": { "Ref": "KenwebELB" }
+    },
+    "OpsWorksSecurityGroup": {
+        "Description": "OpsWorksSecurityGroup",
+        "Value": { "Ref": "OpsWorksSecurityGroup" }
+    },
+    "KenwebSecurityGroup": {
+        "Description": "KenwebSecurityGroup",
+        "Value": { "Ref": "KenwebSecurityGroup" }
+    },
+    "ElizaSecurityGroup": {
+        "Description": "ElizaSecurityGroup",
+        "Value": { "Ref": "ElizaSecurityGroup" }
+    },
+    "CelerySecurityGroup": {
+        "Description": "CelerySecurityGroup",
+        "Value": { "Ref": "CelerySecurityGroup" }
+    },
+    "ElasticsearchSecurityGroup": {
+        "Description": "ElasticsearchSecurityGroup",
+        "Value": { "Ref": "ElasticsearchSecurityGroup" }
+    }
+
+ },
+  "Parameters" : {
+      "KeyName": {
+      "Type": "AWS::EC2::KeyPair::KeyName"
+     },
+    "AvailabilityZone1" : {
+      "Type" : "String"
+    },
+    "AvailabilityZone2" : {
+      "Type" : "String"
+    },
+    "AvailabilityZone3" : {
+      "Type" : "String"
+    },
+    "pubcidr1" : {
+      "Type" : "String"
+    },
+     "pubcidr2" : {
+      "Type" : "String"
+    },
+    "pricidr1" : {
+      "Type" : "String"
+    },
+    "pricidr2" : {
+      "Type" : "String"
+    },
+    "pricidr3" : {
+      "Type" : "String"
+    },
+    "vpccidr" : {
+      "Type" : "String"
+    },
+   "Stackname" : {
+   "Type" : "String"
+   }
+ },
+  "Mappings" : {
+    "AWSNATAMI" : {
+      "us-east-1"      : { "AMI" : "ami-c6699baf" },
+      "us-west-2"      : { "AMI" : "ami-52ff7262" },
+      "us-west-1"      : { "AMI" : "ami-3bcc9e7e" },
+      "eu-west-1"      : { "AMI" : "ami-0b5b6c7f" },
+      "ap-southeast-1" : { "AMI" : "ami-02eb9350" },
+      "ap-southeast-2" : { "AMI" : "ami-ab990e91" },
+      "ap-northeast-1" : { "AMI" : "ami-14d86d15" },
+      "sa-east-1"      : { "AMI" : "ami-0439e619" }
+    },
+
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "64" },
+      "m1.small"    : { "Arch" : "64" },
+      "m1.medium"   : { "Arch" : "64" },
+      "m1.large"    : { "Arch" : "64" },
+      "m1.xlarge"   : { "Arch" : "64" },
+      "m2.xlarge"   : { "Arch" : "64" },
+      "m2.2xlarge"  : { "Arch" : "64" },
+      "m2.4xlarge"  : { "Arch" : "64" },
+      "c1.medium"   : { "Arch" : "64" },
+      "c1.xlarge"   : { "Arch" : "64" },
+      "cc1.4xlarge" : { "Arch" : "64Cluster" },
+      "cc2.8xlarge" : { "Arch" : "64Cluster" },
+      "cg1.4xlarge" : { "Arch" : "64GPU" }
+    },
+
+"AWSRegionArch2AMI" : {
+      "us-east-1"      : { "32" : "ami-a0cd60c9", "64" : "ami-aecd60c7", "64Cluster" : "ami-a8cd60c1",      "64GPU" : "ami-eccf6285" },
+      "us-west-2"      : { "32" : "ami-46da5576", "64" : "ami-48da5578", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "us-west-1"      : { "32" : "ami-7d4c6938", "64" : "ami-734c6936", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "eu-west-1"      : { "32" : "ami-61555115", "64" : "ami-6d555119", "64Cluster" : "ami-67555113",      "64GPU" : "NOT_YET_SUPPORTED" },
+      "ap-southeast-1" : { "32" : "ami-220b4a70", "64" : "ami-3c0b4a6e", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "ap-southeast-2" : { "32" : "ami-b3990e89", "64" : "ami-bd990e87", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "ap-northeast-1" : { "32" : "ami-2a19aa2b", "64" : "ami-2819aa29", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" },
+      "sa-east-1"      : { "32" : "ami-f836e8e5", "64" : "ami-fe36e8e3", "64Cluster" : "NOT_YET_SUPPORTED", "64GPU" : "NOT_YET_SUPPORTED" }
+    }
+
+  },
+  
+ "Resources" : {
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Ref" : "vpccidr" },
+        "Tags" : [
+	    { "Key" : "Name", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "IGW"] ] } }
+        ]
+      }
+    },
+    "GatewayToInternet" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+     "PublicSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" }, 
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "pubcidr1" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public1"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public1"] ] } }
+        ]
+      }
+    },
+
+     "PublicSubnet2" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+	"AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+        "CidrBlock" : { "Ref" : "pubcidr2" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public2"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public2"] ] } }
+        ]
+      }
+    },
+    "PrivateSubnet1" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+	"AvailabilityZone" : { "Ref" : "AvailabilityZone1" },
+        "CidrBlock" : { "Ref" : "pricidr1" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private1"] ] } }
+        ]
+      }
+    },
+    "PrivateSubnet2" : {
+       "Type" : "AWS::EC2::Subnet",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+	"AvailabilityZone" : { "Ref" : "AvailabilityZone2" },
+         "CidrBlock" : { "Ref" : "pricidr2" },
+         "Tags" : [
+           { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+           { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private2"] ] } }
+         ]
+       }
+     },
+      "PrivateSubnet3" : {
+       "Type" : "AWS::EC2::Subnet",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : { "Ref" : "AvailabilityZone3" },
+         "CidrBlock" : { "Ref" : "pricidr3" },
+         "Tags" : [
+           { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+           { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private3"] ] } }
+         ]
+       }
+     },
+      "PublicRouteTable1" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public"] ] } }
+        ]
+      }
+    },
+
+    "PublicSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable1" }
+      }
+    },
+        "PublicSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet2" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable1" }
+      }
+    },
+"PrivateRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private"] ] } }
+        ]
+      }
+    },
+
+    "PrivateSubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet1" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+      }
+    },
+   
+    "PrivateSubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet2" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+      }
+    },
+
+    "PrivateSubnetRouteTableAssociation3" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet3" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+      }
+    },
+
+    "PrivateRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    },
+    "PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PublicRouteTable1" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+
+    "PublicNetworkAcl" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "public"] ] } }
+        ]
+      }
+    },
+
+    "InboundPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "99",
+        "Protocol" : "-1",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0"
+      }
+    },
+
+    "OutboundPublicNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" },
+        "RuleNumber" : "99",
+        "Protocol" : "-1",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0"
+      }
+    },
+
+    "PublicSubnetNetworkAclAssociation1" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
+      }
+    },
+       "PublicSubnetNetworkAclAssociation2" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnet2" },
+        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
+      }
+    },
+    
+    "PrivateNetworkAcl" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Network", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private"] ] } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "private"] ] } }
+        ]
+      }
+    },
+
+    "InboundPrivateNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" },
+        "RuleNumber" : "99",
+        "Protocol" : "-1",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : "0.0.0.0/0"
+      }
+    },
+
+    "OutBoundPrivateNetworkAclEntry" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" },
+        "RuleNumber" : "99",
+        "Protocol" : "-1",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0"
+      }
+    },
+    
+    "PrivateSubnetNetworkAclAssociation1" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnet1" },
+        "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" }
+      }
+    },
+   
+    "PrivateSubnetNetworkAclAssociation2" : {
+       "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+       "Properties" : {
+         "SubnetId" : { "Ref" : "PrivateSubnet2" },
+         "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" }
+       }
+     },
+
+      "PrivateSubnetNetworkAclAssociation3" : {
+       "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+       "Properties" : {
+         "SubnetId" : { "Ref" : "PrivateSubnet3" },
+         "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" }
+       }
+     },
+    
+    "NATIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    },
+
+    "NATDevice" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t1.micro",
+        "KeyName" : {"Ref" : "KeyName"},
+        "SubnetId" : { "Ref" : "PublicSubnet1" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref": "Stackname" } },
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "NAT"] ] } }
+        ],
+        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }]
+      }
+    },
+"KenwebELB" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "LoadBalancerName" : { "Fn::Join" : [ "-", [ { "Ref": "Stackname" }, "KenwebELB"] ] },
+        "SecurityGroups" : [ { "Ref" : "KenwebELBSG" } ],
+        "Subnets" : [ { "Ref" : "PublicSubnet1" },{ "Ref" : "PublicSubnet2" } ],
+        "Listeners" : [ { "LoadBalancerPort" : "80", "InstancePort" : "80", "Protocol" : "HTTP" } ],
+        "ConnectionDrainingPolicy" : {
+          "Enabled" : true,
+          "Timeout" : 10
+        },
+        "HealthCheck" : {
+          "Target" : "HTTP:80/",
+          "HealthyThreshold" : "3",
+          "UnhealthyThreshold" : "5",
+          "Interval" : "9",
+          "Timeout" : "6"
+        }
+      }
+    },
+"KenwebELBSG" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access on port 80, 443",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0" }, { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" }  ],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ],
+        "Tags" : [{ "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "AWS::StackName" }, "KenwebELBSG"] ] } }]
+      }
+    },
+    "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "SourceSecurityGroupId" : { "Ref" : "CelerySecurityGroup" }},
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "SourceSecurityGroupId" : { "Ref" : "OpsWorksSecurityGroup" }},
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "SourceSecurityGroupId" : { "Ref" : "KenwebSecurityGroup" }},
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "SourceSecurityGroupId" : { "Ref" : "ElasticsearchSecurityGroup" }},
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "SourceSecurityGroupId" : { "Ref" : "ElizaSecurityGroup" }},
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "587",  "ToPort" : "587", "CidrIp" : "0.0.0.0/0" },
+
+          { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443",  "CidrIp" : "0.0.0.0/0"}],
+
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "0.0.0.0/0" } , { "IpProtocol" : "udp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "0.0.0.0/0" } , { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" }],
+        "Tags" : [{ "Key" : "Name", "Value" : "nat" }]
+      }
+    },
+
+     "OpsWorksSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "CidrIp" : "0.0.0.0/0"}],
+        "Tags" : [{ "Key" : "Name", "Value" : "OpsWorksSecurityGroup" }],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ]   
+      }
+    },
+
+  "CelerySecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "5666", "ToPort" : "5666", "CidrIp" : "10.20.0.0/16" },
+       { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "CidrIp" : "0.0.0.0/0"}],
+        "Tags" : [{ "Key" : "Name", "Value" : "CelerySecurityGroup" }],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ]   
+      }
+    },
+
+ "KenwebSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "5666", "ToPort" : "5666", "CidrIp" : "10.20.0.0/16" },
+       { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "443",  "ToPort" : "443", "CidrIp" : "0.0.0.0/0"}],
+        "Tags" : [{ "Key" : "Name", "Value" : "DjangoSecurityGroup" }],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ]   
+      }
+ 
+ },
+
+ "ElizaSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "5666", "ToPort" : "5666", "CidrIp" : "10.20.0.0/16" },
+       { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" }],
+        "Tags" : [{ "Key" : "Name", "Value" : "ElizaSecurityGroup" }],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ]
+      }
+    },
+
+    "ElasticsearchSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Allow the OpsWorks instances to access the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+       { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "5666", "ToPort" : "5666", "CidrIp" : "10.20.0.0/16" },
+       { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" },
+       { "IpProtocol" : "tcp", "FromPort" : "9200",  "ToPort" : "9200",  "CidrIp" : "0.0.0.0/0" }],
+        "Tags" : [{ "Key" : "Name", "Value" : "ElasticsearchSecurityGroup" }],
+        "SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}, { "IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "CidrIp" : "0.0.0.0/0"} ]
+      }
+    }
+
+ 
+  }
+}

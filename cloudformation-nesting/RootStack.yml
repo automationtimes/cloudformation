@@ -1,0 +1,223 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC Nested Stack Template
+Parameters:
+  Env:
+    Type: String
+    Default: Dev
+    AllowedValues:
+      - Dev
+      - Prod
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+  ############# parameter for DBInstance ###########
+  DBInstanceID:
+    Default: mydbinstance
+    Description: My database instance
+    Type: String
+    MinLength: '1'
+    MaxLength: '63'
+    ConstraintDescription: >-
+      Must begin with a letter and must not end with a hyphen or contain two
+      consecutive hyphens.
+  DBName:
+    Default: zcloudsdb
+    Description: My database
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+  MYSqlVersion:
+    Default: 8.0.16
+    Description: DB instance class
+    Type: String
+    AllowedValues: 
+      - 8.0.16
+      - 5.7.21
+      - 5.7.25
+      - 5.7.17
+    ConstraintDescription: Must select a valid DB instance type.
+  DBAllocatedStorage:
+    Default: '20'
+    Description: The size of the database (GiB)
+    Type: Number
+    MinValue: '20'
+    MaxValue: '65536'
+    ConstraintDescription: must be between 20 and 65536 GiB.
+  DBUsername:
+    Default: 'zcloudsuser'
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password MySQL database access
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    ConstraintDescription: must contain only alphanumeric characters.
+  ####################### ELB Parametets ###########################
+  HealthCheckInterval:
+    Type: String
+    Default: '30'
+    Description: Health check Interval range is 5-300 seconds
+  HealthChecktimeout: 
+    Type: String
+    Default: '25'
+    Description: The amount of time, in seconds, during which no response from a target means a failed health check. The range is 2-120 seconds
+  Healthycount:
+    Type: String 
+    Default: '2'
+    Description: The number of consecutive successful health checks required before considering an unhealthy target healthy. The range is 2-10.
+  Unhealthycount: 
+    Type: String 
+    Default: '5'
+    Description: The number of consecutive failed health checks required before considering a target unhealthy. The range is 2-10
+    ########################### ASG Parameters ###################
+  InstanceType: 
+      Type: String 
+      Default: t2.micro
+      AllowedValues:
+        - t2.micro
+        - t2.small
+  InstanceMinSize: 
+    Type: String 
+    Default: "2"
+    Description: please select minimum size 
+  InstanceMaxSize: 
+    Type: String 
+    Default: "2"
+    Description: please select max size 
+  InstanceDesireSize: 
+    Type: String 
+    Default: "2"
+    Description: please select desire size  
+  AMIId:
+    Type: String 
+    Default: ami-0231217be14a6f3ba
+  KeyName:
+    Type: String 
+    Default: zohaiblhr
+    AllowedValues:
+      - zohaiblhr
+      - zcloudskey
+########### Resources section ########
+Resources:
+  VPCSGStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://zcloudsnestedbucket.s3.us-east-2.amazonaws.com/vpc.yml
+      Parameters:  
+        Env:  !Ref Env
+        VpcCIDR: !Ref VpcCIDR
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        PrivateSubnet1CIDR: !Ref PrivateSubnet1CIDR
+        PrivateSubnet2CIDR: !Ref PrivateSubnet2CIDR
+  RDSSTACK:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://zcloudsnestedbucket.s3.us-east-2.amazonaws.com/RDS.yml
+      Parameters:  
+        Env:                  !Ref Env
+        DBInstanceID:         !Ref DBInstanceID
+        DBName:               !Ref DBName
+        MYSqlVersion:         !Ref MYSqlVersion
+        DBAllocatedStorage:   !Ref DBAllocatedStorage
+        DBAllocatedStorage:   !Ref  DBAllocatedStorage
+        DBUsername:           !Ref DBUsername
+        DBPassword:           !Ref DBPassword
+        AllPrivateSubnet:     !GetAtt VPCSGStack.Outputs.PrivateSubnetsList
+        vpcSecurityGroupId:   !GetAtt VPCSGStack.Outputs.RdsSecurityImport
+    DependsOn: "VPCSGStack"
+  ELBSTACK:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://zcloudsnestedbucket.s3.us-east-2.amazonaws.com/ELB.yml
+      Parameters:  
+        Env:                  !Ref Env
+        HealthCheckInterval: !Ref HealthCheckInterval
+        HealthChecktimeout:  !Ref HealthChecktimeout
+        Healthycount:        !Ref Healthycount
+        Unhealthycount:      !Ref Unhealthycount
+        AllPublicSubnet:     !GetAtt VPCSGStack.Outputs.PublicSubnetsList
+        ELBSecurityGroup:    !GetAtt VPCSGStack.Outputs.ELBSecurityImport
+        VPCIDGET:            !GetAtt VPCSGStack.Outputs.VPC
+    DependsOn: "VPCSGStack"
+  ASGSTACK:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://zcloudsnestedbucket.s3.us-east-2.amazonaws.com/ASG.yml
+      Parameters:  
+        Env:                  !Ref Env
+        InstanceType:         !Ref InstanceType
+        InstanceMinSize:      !Ref InstanceMinSize
+        InstanceMaxSize:      !Ref InstanceMaxSize
+        InstanceDesireSize:   !Ref InstanceDesireSize
+        AMIId:                !Ref AMIId
+        KeyName:              !Ref KeyName
+        ASGLauchSG:           !GetAtt VPCSGStack.Outputs.LaunchTemplateSecurity
+        AllPrivateSubnet:    !GetAtt VPCSGStack.Outputs.PrivateSubnetsList
+        TarGetGroup:         !GetAtt ELBSTACK.Outputs.TargetGroup
+        RDSEndPoints:        !GetAtt RDSSTACK.Outputs.RDSEndPoints
+    DependsOn: "ELBSTACK"
+
+    
+
+          
+
+
+
+
+
+
+
+
+        
+
+
+    
+
+
+
+
+
+
+
+        
+
+
+        
+
+
+
+
+    
+
+
+
+  
+

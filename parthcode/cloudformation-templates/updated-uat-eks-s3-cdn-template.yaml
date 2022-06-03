@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+    ken s3 static cdn setup
+Parameters:
+    Env:
+        Type: String
+        Description: environment name
+    CertificateARN:
+        Type: String
+        Description: acm ssl cert arn
+        Default: "arn:aws:acm:us-east-1:202279780353:certificate/b15b1aa5-ce31-4bfa-8b85-8fa362e301a1"
+    k8sIngressLBUrl:
+        Type: String
+        Description: eks ingress load balancer url
+        Default: "a60b4a48db1cb429aa509e7d08fe59a9-16ee45f76b013e04.elb.us-west-2.amazonaws.com"
+    
+Resources:
+    S3Static:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3.amazonaws.com/ken-ecs/infrastructure/eks-env-infra/s3-static.yaml
+            Parameters:
+                StackName: !Ref AWS::StackName
+    CloudFront:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3.amazonaws.com/ken-ecs/infrastructure/eks-env-infra/cloudfront.yaml
+            Parameters:
+                S3OriginDomainName: !GetAtt S3Static.Outputs.WebsiteDomain
+                CustomOriginDomainName: !Ref k8sIngressLBUrl
+                AcmCertificateArn: !Ref CertificateARN
+                StackName: !Ref AWS::StackName
+                Env: !Ref Env
+                Aliases: ken.staging.nops.io
